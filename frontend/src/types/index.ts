@@ -86,6 +86,8 @@ export interface TripFormData {
   accommodation: string
   preferences: string[]
   free_text_input: string
+  travel_mode: string
+  people_count: number
 }
 
 export interface TripPlanResponse {

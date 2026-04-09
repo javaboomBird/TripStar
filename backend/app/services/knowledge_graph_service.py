@@ -111,10 +111,12 @@ def build_knowledge_graph(trip_plan: TripPlan) -> Dict[str, Any]:
 
         # ---- 酒店 ----
         if day.hotel:
-            hotel_id = f"hotel_{day.day_index}_{day.hotel.name}"
-            add_node(hotel_id, day.hotel.name, "酒店",
-                     f"{day.hotel.price_range} | ¥{day.hotel.estimated_cost}/晚" if day.hotel.estimated_cost else day.hotel.price_range)
-            add_edge(day_id, hotel_id, "入住")
+            hotels = day.hotel if isinstance(day.hotel, list) else [day.hotel]
+            for h_idx, hotel in enumerate(hotels):
+                hotel_id = f"hotel_{day.day_index}_{h_idx}_{hotel.name}"
+                add_node(hotel_id, hotel.name, "酒店",
+                         f"{hotel.price_range} | ¥{hotel.estimated_cost}/晚" if hotel.estimated_cost else hotel.price_range)
+                add_edge(day_id, hotel_id, "入住")
 
         # ---- 餐饮 ----
         for j, meal in enumerate(day.meals):

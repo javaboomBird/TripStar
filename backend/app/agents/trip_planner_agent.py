@@ -78,6 +78,26 @@ HOTEL_AGENT_PROMPT = """你是酒店推荐专家。你的任务是根据城市�
 4. 必须输出 `amap_maps_text_search` 作为工具名。
 """
 
+TRANSIT_AGENT_PROMPT = """你是交通规划专家。你的任务是查询两个城市之间的公共交通路线（火车、高铁、动车等）。
+
+**重要提示:**
+1. 你必须使用工具来查询交通路线!不要自己编造路线信息!
+2. 系统为你绑定的真实工具名称叫做 `amap_maps_direction_transit_integrated_by_address`，你**只能而且必须**原样输出这个名字。
+
+**工具调用格式:**
+必须严格按照以下单行格式输出:
+`[TOOL_CALL:amap_maps_direction_transit_integrated_by_address:origin=出发地,destination=目的地,origin_city=出发城市,destination_city=目的城市]`
+
+**示例:**
+用户: "查询上海到北京的交通"
+你的回复: [TOOL_CALL:amap_maps_direction_transit_integrated_by_address:origin=上海,destination=北京,origin_city=上海,destination_city=北京]
+
+**注意:**
+1. 必须使用工具,不要直接回答
+2. 格式必须完全正确
+3. 必须输出 `amap_maps_direction_transit_integrated_by_address` 作为工具名。
+"""
+
 PLANNER_AGENT_PROMPT = """你是行程规划专家。你的任务是根据景点信息和天气信息,生成详细的旅行计划。
 
 请严格按照以下JSON格式返回旅行计划:
@@ -93,16 +113,18 @@ PLANNER_AGENT_PROMPT = """你是行程规划专家。你的任务是根据景点
       "description": "第1天行程概述",
       "transportation": "交通方式",
       "accommodation": "住宿类型",
-      "hotel": {
-        "name": "酒店名称",
-        "address": "酒店地址",
-        "location": {"longitude": 116.397128, "latitude": 39.916527},
-        "price_range": "300-500元",
-        "rating": "4.5",
-        "distance": "距离景点2公里",
-        "type": "经济型酒店",
-        "estimated_cost": 400
-      },
+      "hotel": [
+        {
+          "name": "酒店名称",
+          "address": "酒店地址",
+          "location": {"longitude": 116.397128, "latitude": 39.916527},
+          "price_range": "300-500元",
+          "rating": "4.5",
+          "distance": "距离景点2公里",
+          "type": "经济型酒店",
+          "estimated_cost": 400
+        }
+      ],
       "attractions": [
         {
           "name": "景点名称",
@@ -117,9 +139,9 @@ PLANNER_AGENT_PROMPT = """你是行程规划专家。你的任务是根据景点
         }
       ],
       "meals": [
-        {"type": "breakfast", "name": "早餐推荐", "description": "早餐描述", "estimated_cost": 30},
-        {"type": "lunch", "name": "午餐推荐", "description": "午餐描述", "estimated_cost": 50},
-        {"type": "dinner", "name": "晚餐推荐", "description": "晚餐描述", "estimated_cost": 80}
+        {"type": "breakfast", "name": "早餐推荐", "description": "早餐描述", "estimated_cost": 30, "alternatives": [{"name": "备选餐厅1", "description": "特色菜介绍", "estimated_cost": 25}, {"name": "备选餐厅2", "description": "特色菜介绍", "estimated_cost": 35}]},
+        {"type": "lunch", "name": "午餐推荐", "description": "午餐描述", "estimated_cost": 50, "alternatives": [{"name": "备选餐厅1", "description": "特色菜介绍", "estimated_cost": 45}]},
+        {"type": "dinner", "name": "晚餐推荐", "description": "晚餐描述", "estimated_cost": 80, "alternatives": [{"name": "备选餐厅1", "description": "特色菜介绍", "estimated_cost": 70}]}
       ]
     }
   ],
@@ -157,15 +179,18 @@ PLANNER_AGENT_PROMPT = """你是行程规划专家。你的任务是根据景点
 2. 温度必须是纯数字(不要带°C等单位)
 3. 每天安排2-3个景点
 4. 考虑景点之间的距离和游览时间
-5. 每天必须包含早中晚三餐
-6. 提供实用的旅行建议
-7. **必须包含预算信息**:
+5. 每天必须包含早中晚三餐，每餐推荐当地出名的餐厅，并在 alternatives 中提供1-2个备选餐厅（含特色菜和人均价格）
+6. 每天推荐2-3个不同档次的酒店，放在 hotel 数组中，包含价格、评分、距离景点距离，供用户对比选择
+7. 提供实用的旅行建议
+8. **必须包含预算信息**:
    - 景点门票价格(ticket_price)
    - 餐饮预估费用(estimated_cost)
    - 酒店预估费用(estimated_cost)
    - 预算汇总(budget)包含各项总费用
+   - 所有费用按出行人数倍乘计算总预算
 9. **预约信息透传**: 如果景点搜索数据中包含 reservation_required 和 reservation_tips 字段，请务必将它们完整保留在对应景点的JSON中。需要预约的景点请在 description 中也提醒游客提前预约
-8. **景点图片**: 不需要在JSON中填写 image_url 字段，图片由前端根据景点名称自动从小红书获取。
+10. **景点图片**: 不需要在JSON中填写 image_url 字段，图片由前端根据景点名称自动从小红书获取。
+11. **交通班次**: 如果提供了交通路线数据，请根据真实数据推荐具体的出行班次和时间
 """
 
 
@@ -222,14 +247,24 @@ class MultiAgentTripPlanner:
                 system_prompt=HOTEL_AGENT_PROMPT
             )
 
+            # 创建交通规划Agent
+            print("  - 创建交通规划Agent...")
+            self.transit_agent = SimpleAgent(
+                name="交通规划专家",
+                llm=self.llm,
+                system_prompt=TRANSIT_AGENT_PROMPT
+            )
+
             # 注册展开后的独立工具到各Agent
             if expanded_tools:
                 for tool in expanded_tools:
                     self.weather_agent.add_tool(tool, auto_expand=False)
                     self.hotel_agent.add_tool(tool, auto_expand=False)
+                    self.transit_agent.add_tool(tool, auto_expand=False)
             else:
                 self.weather_agent.add_tool(self.amap_tool)
                 self.hotel_agent.add_tool(self.amap_tool)
+                self.transit_agent.add_tool(self.amap_tool)
 
             # 创建行程规划Agent(不需要工具)
             print("  - 创建行程规划Agent...")
@@ -242,6 +277,7 @@ class MultiAgentTripPlanner:
             print(f"✅ 多智能体系统初始化成功")
             print(f"   天气查询Agent: {len(self.weather_agent.list_tools())} 个工具")
             print(f"   酒店推荐Agent: {len(self.hotel_agent.list_tools())} 个工具")
+            print(f"   交通规划Agent: {len(self.transit_agent.list_tools())} 个工具")
 
         except Exception as e:
             print(f"❌ 多智能体系统初始化失败: {str(e)}")
@@ -273,33 +309,38 @@ class MultiAgentTripPlanner:
             print(f"偏好: {', '.join(request.preferences) if request.preferences else '无'}")
             print(f"{'='*60}\n")
 
-            # ========== 串行阶段: 步骤1-3 依次执行 ==========
-            print("⏳ 依次执行步骤1-3: 搜索景点 -> 查询天气 -> 搜索酒店...")
+            # ========== 串行阶段: 步骤1-4 依次执行 ==========
+            print("⏳ 依次执行步骤1-4: 搜索景点 -> 查询天气 -> 搜索酒店 -> 查询交通...")
 
             # 构建各Agent的查询
             weather_query = f"请查询{request.city}的天气信息"
             hotel_query = f"请搜索{request.city}的{request.accommodation}酒店"
+            transit_query = f"请查询从{request.departure_city}到{request.city}的公共交通路线"
 
             # 依次执行,避免多个线程同时启动 uvx 子进程导致资源竞争和超时
-            print("  [1/3] 正在使用小红书服务搜索景点...")
+            print("  [1/4] 正在使用小红书服务搜索景点...")
             from ..services.xhs_service import search_xhs_attractions
             keywords = request.preferences[0] if request.preferences else "景点"
             attraction_response = await asyncio.to_thread(search_xhs_attractions, request.city, keywords)
             print(f"📍 景点搜索结果: {attraction_response[:200]}...")
 
-            print("  [2/3] 正在查询天气...")
+            print("  [2/4] 正在查询天气...")
             weather_response = await asyncio.to_thread(self.weather_agent.run, weather_query)
             print(f"🌤️  天气查询结果: {weather_response[:200]}...")
 
-            print("  [3/3] 正在搜索酒店...")
+            print("  [3/4] 正在搜索酒店...")
             hotel_response = await asyncio.to_thread(self.hotel_agent.run, hotel_query)
             print(f"🏨 酒店搜索结果: {hotel_response[:200]}...")
+
+            print("  [4/4] 正在查询交通路线...")
+            transit_response = await asyncio.to_thread(self.transit_agent.run, transit_query)
+            print(f"🚄 交通路线结果: {transit_response[:200]}...")
 
             print(f"\n✅ 基础信息搜集完成\n")
 
             # ========== 串行阶段: 步骤4 整合生成 ==========
             print("📋 步骤4: 生成行程计划...")
-            planner_query = self._build_planner_query(request, attraction_response, weather_response, hotel_response)
+            planner_query = self._build_planner_query(request, attraction_response, weather_response, hotel_response, transit_response)
             planner_response = await asyncio.to_thread(self.planner_agent.run, planner_query)
             print(f"行程规划结果: {planner_response[:300]}...\n")
 
@@ -331,8 +372,15 @@ class MultiAgentTripPlanner:
         query = f"请使用amap_maps_text_search工具搜索{request.city}的{keywords}相关的景点。\n非常重要：你必须直接输出 `[TOOL_CALL:amap_maps_text_search:keywords={keywords},city={request.city}]`，不要附带任何多余的 JSON 或文字说明！"
         return query
 
-    def _build_planner_query(self, request: TripRequest, attractions: str, weather: str, hotels: str = "") -> str:
+    def _build_planner_query(self, request: TripRequest, attractions: str, weather: str, hotels: str = "", transit: str = "") -> str:
         """构建行程规划查询"""
+        people_info = f"\n- 出行人数: {request.people_count}人" if request.people_count > 1 else ""
+        weekend_info = ""
+        if request.travel_mode == "weekend_friday":
+            weekend_info = "\n- 出行模式: 周末游（周五晚出发），请合理安排第一天为晚间到达，最大化周末游玩时间"
+        elif request.travel_mode == "weekend_saturday":
+            weekend_info = "\n- 出行模式: 周末游（周六出发），请紧凑安排周六周日的行程"
+
         query = f"""请根据以下信息生成{request.city}的{request.travel_days}天旅行计划:
 
 **基本信息:**
@@ -342,7 +390,7 @@ class MultiAgentTripPlanner:
 - 天数: {request.travel_days}天
 - 交通方式: {request.transportation}
 - 住宿: {request.accommodation}
-- 偏好: {', '.join(request.preferences) if request.preferences else '无'}
+- 偏好: {', '.join(request.preferences) if request.preferences else '无'}{people_info}{weekend_info}
 
 **景点信息:**
 {attractions}
@@ -353,14 +401,18 @@ class MultiAgentTripPlanner:
 **酒店信息:**
 {hotels}
 
+**交通路线信息（出发地→目的地）:**
+{transit if transit else '无数据'}
+
 **要求:**
-1. 根据出发地到目的地的距离，合理建议往返交通方式（如高铁、飞机、自驾等）
+1. 根据交通路线数据，推荐具体的往返班次和出发时间
 2. 每天安排2-3个景点
-3. 每天必须包含早中晚三餐
-4. 每天推荐一个具体的酒店(从酒店信息中选择)
+3. 每天必须包含早中晚三餐，每餐推荐当地出名的餐厅，并提供1-2个备选餐厅
+4. 每天推荐2-3个不同档次的酒店，放在 hotel 数组中供用户对比
 5. 考虑景点之间的距离和交通方式
-4. 返回完整的JSON格式数据
-5. 景点的经纬度坐标要真实准确
+6. 返回完整的JSON格式数据
+7. 景点的经纬度坐标要真实准确
+8. 所有费用预算按{request.people_count}人计算
 """
         if request.free_text_input:
             query += f"\n**额外要求:** {request.free_text_input}"

@@ -359,17 +359,17 @@
               </a-list>
 
               <!-- 酒店推荐 -->
-              <a-divider v-if="day.hotel" orientation="left">{{ t('result.hotelTitle') }}</a-divider>
-              <a-card v-if="day.hotel" size="small" class="hotel-card">
+              <a-divider v-if="day.hotel && day.hotel.length" orientation="left">{{ t('result.hotelTitle') }}</a-divider>
+              <a-card v-for="(hotel, hIdx) in (day.hotel || [])" :key="hIdx" size="small" class="hotel-card" style="margin-bottom: 8px;">
                 <template #title>
-                  <span class="hotel-title">{{ day.hotel.name }}</span>
+                  <span class="hotel-title">{{ hotel.name }}</span>
                 </template>
                 <a-descriptions :column="2" size="small">
-                  <a-descriptions-item :label="t('result.fieldAddress')">{{ day.hotel.address }}</a-descriptions-item>
-                  <a-descriptions-item :label="t('result.fieldType')">{{ day.hotel.type }}</a-descriptions-item>
-                  <a-descriptions-item :label="t('result.fieldPriceRange')">{{ day.hotel.price_range }}</a-descriptions-item>
-                  <a-descriptions-item :label="t('result.fieldRating')">{{ day.hotel.rating }}</a-descriptions-item>
-                  <a-descriptions-item :label="t('result.fieldDistance')" :span="2">{{ day.hotel.distance }}</a-descriptions-item>
+                  <a-descriptions-item :label="t('result.fieldAddress')">{{ hotel.address }}</a-descriptions-item>
+                  <a-descriptions-item :label="t('result.fieldType')">{{ hotel.type }}</a-descriptions-item>
+                  <a-descriptions-item :label="t('result.fieldPriceRange')">{{ hotel.price_range }}</a-descriptions-item>
+                  <a-descriptions-item :label="t('result.fieldRating')">{{ hotel.rating }}</a-descriptions-item>
+                  <a-descriptions-item :label="t('result.fieldDistance')" :span="2">{{ hotel.distance }}</a-descriptions-item>
                 </a-descriptions>
               </a-card>
 
@@ -1338,7 +1338,10 @@ const recalculateBudgetTotals = (transportationOverride?: number) => {
     })
 
     if (day.hotel) {
-      hotelTotal += toBudgetNumber(day.hotel.estimated_cost)
+      const hotels = Array.isArray(day.hotel) ? day.hotel : [day.hotel]
+      if (hotels.length > 0) {
+        hotelTotal += toBudgetNumber(hotels[0].estimated_cost)
+      }
     }
 
     day.meals.forEach((meal) => {
@@ -1382,16 +1385,20 @@ const budgetItems = computed<BudgetDetailItem[]>(() => {
     })
 
     if (day.hotel) {
-      const amount = roundBudgetAmount(toBudgetNumber(day.hotel.estimated_cost))
-      if (amount > 0) {
-        items.push({
-          id: `hotel-${dayIndex}`,
-          type: 'hotel',
-          dayIndex,
-          dayNumber,
-          name: day.hotel.name,
-          amount,
-        })
+      const hotels = Array.isArray(day.hotel) ? day.hotel : [day.hotel]
+      if (hotels.length > 0) {
+        const firstHotel = hotels[0]
+        const amount = roundBudgetAmount(toBudgetNumber(firstHotel.estimated_cost))
+        if (amount > 0) {
+          items.push({
+            id: `hotel-${dayIndex}`,
+            type: 'hotel',
+            dayIndex,
+            dayNumber,
+            name: firstHotel.name,
+            amount,
+          })
+        }
       }
     }
 
@@ -1510,7 +1517,10 @@ const editBudgetItemAmount = (item: BudgetDetailItem) => {
   }
 
   if (item.type === 'hotel' && day.hotel) {
-    day.hotel.estimated_cost = nextAmount
+    const hotels = Array.isArray(day.hotel) ? day.hotel : [day.hotel]
+    if (hotels.length > 0) {
+      hotels[0].estimated_cost = nextAmount
+    }
     changed = true
   }
 

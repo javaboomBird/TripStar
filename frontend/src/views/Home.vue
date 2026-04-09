@@ -100,6 +100,29 @@
                 </div>
               </a-form-item>
             </div>
+
+            <div class="weekend-mode-row">
+              <div
+                class="weekend-btn"
+                :class="{ active: formData.travel_mode !== 'normal' }"
+                @click="toggleWeekendMode"
+              >
+                <span class="weekend-icon">🗓</span>
+                <span>{{ t('home.weekendMode') }}</span>
+              </div>
+              <div v-if="formData.travel_mode !== 'normal'" class="weekend-options">
+                <div
+                  class="weekend-option"
+                  :class="{ selected: formData.travel_mode === 'weekend_friday' }"
+                  @click="setWeekendMode('weekend_friday')"
+                >{{ t('home.weekendFriday') }}</div>
+                <div
+                  class="weekend-option"
+                  :class="{ selected: formData.travel_mode === 'weekend_saturday' }"
+                  @click="setWeekendMode('weekend_saturday')"
+                >{{ t('home.weekendSaturday') }}</div>
+              </div>
+            </div>
           </div>
 
           <!-- Step 2: 偏好设置 -->
@@ -110,7 +133,7 @@
               <div class="step-line"></div>
             </div>
 
-            <div class="fields-grid fields-2">
+            <div class="fields-grid fields-3">
               <a-form-item name="transportation">
                 <template #label>
                   <span class="field-label">{{ t('home.transportationLabel') }}</span>
@@ -133,6 +156,20 @@
                   <a-select-option value="豪华酒店">{{ t('home.accommodation.luxury') }}</a-select-option>
                   <a-select-option value="民宿">{{ t('home.accommodation.homestay') }}</a-select-option>
                 </a-select>
+              </a-form-item>
+
+              <a-form-item name="people_count">
+                <template #label>
+                  <span class="field-label">{{ t('home.peopleCountLabel') }}</span>
+                </template>
+                <a-input-number
+                  v-model:value="formData.people_count"
+                  :min="1"
+                  :max="10"
+                  size="large"
+                  style="width: 100%"
+                  class="dark-input"
+                />
               </a-form-item>
             </div>
 
@@ -251,8 +288,35 @@ const formData = reactive<HomeFormData>({
   transportation: '公共交通',
   accommodation: '经济型酒店',
   preferences: [],
-  free_text_input: ''
+  free_text_input: '',
+  travel_mode: 'normal',
+  people_count: 1,
 })
+
+const toggleWeekendMode = () => {
+  if (formData.travel_mode !== 'normal') {
+    formData.travel_mode = 'normal'
+    formData.start_date = null
+    formData.end_date = null
+    formData.travel_days = 1
+  } else {
+    setWeekendMode('weekend_friday')
+  }
+}
+
+const setWeekendMode = (mode: string) => {
+  formData.travel_mode = mode
+  const today = dayjs()
+  const dayOfWeek = today.day()
+  const targetDay = mode === 'weekend_friday' ? 5 : 6
+  let daysUntil = targetDay - dayOfWeek
+  if (daysUntil <= 0) daysUntil += 7
+  const startDate = today.add(daysUntil, 'day')
+  const endDate = startDate.add(mode === 'weekend_friday' ? 2 : 1, 'day')
+  formData.start_date = startDate
+  formData.end_date = endDate
+  formData.travel_days = endDate.diff(startDate, 'day') + 1
+}
 
 const togglePreference = (value: string) => {
   const idx = formData.preferences.indexOf(value)
@@ -556,8 +620,69 @@ const handleSubmit = async () => {
   grid-template-columns: 1.5fr 1fr 1fr 0.8fr;
 }
 
+.fields-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .fields-2 {
   grid-template-columns: 1fr 1fr;
+}
+
+.weekend-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.weekend-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border: 1px solid rgba(255, 179, 71, 0.3);
+  border-radius: 12px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.weekend-btn:hover {
+  border-color: rgba(255, 179, 71, 0.6);
+  color: #ffb347;
+}
+
+.weekend-btn.active {
+  background: rgba(255, 179, 71, 0.15);
+  border-color: #ffb347;
+  color: #ffb347;
+}
+
+.weekend-options {
+  display: flex;
+  gap: 8px;
+}
+
+.weekend-option {
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.weekend-option:hover {
+  border-color: rgba(255, 179, 71, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.weekend-option.selected {
+  background: rgba(255, 179, 71, 0.2);
+  border-color: #ffb347;
+  color: #ffb347;
 }
 
 /* 表单标签 */
@@ -874,8 +999,14 @@ const handleSubmit = async () => {
     grid-template-columns: 1fr;
   }
 
+  .fields-3,
   .fields-2 {
     grid-template-columns: 1fr;
+  }
+
+  .weekend-mode-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .interest-group {

@@ -254,9 +254,23 @@ def search_xhs_attractions(city: str, keywords: str) -> str:
     query = f"{city} {keywords} 旅游 景点攻略"
 
     try:
-        # 使用原生签名客户端搜索
-        res_json = client.search_notes(keyword=query)
-        items = res_json.get("data", {}).get("items", [])[:4]
+        # 双轮搜索：按点赞排序取 top 3 + 按最新排序取 top 2，合并去重
+        print("  [XHS] 第一轮: 按点赞排序搜索...")
+        res_popular = client.search_notes(keyword=query, sort_type=2)
+        items_popular = res_popular.get("data", {}).get("items", [])[:3]
+
+        print("  [XHS] 第二轮: 按最新排序搜索...")
+        res_latest = client.search_notes(keyword=query, sort_type=1)
+        items_latest = res_latest.get("data", {}).get("items", [])[:2]
+
+        # 合并去重
+        seen_ids = set()
+        items = []
+        for note in items_popular + items_latest:
+            note_id = note.get("id", "")
+            if note_id and note_id not in seen_ids:
+                seen_ids.add(note_id)
+                items.append(note)
 
         combined_text = ""
         for i, note in enumerate(items):

@@ -18,6 +18,8 @@ class TripRequest(BaseModel):
     accommodation: str = Field(..., description="住宿偏好", example="经济型酒店")
     preferences: List[str] = Field(default=[], description="旅行偏好标签", example=["历史文化", "美食"])
     free_text_input: Optional[str] = Field(default="", description="额外要求", example="希望多安排一些博物馆")
+    travel_mode: str = Field(default="normal", description="出行模式: normal/weekend_friday/weekend_saturday", example="normal")
+    people_count: int = Field(default=1, description="出行人数", ge=1, le=10, example=2)
     
     class Config:
         json_schema_extra = {
@@ -30,7 +32,9 @@ class TripRequest(BaseModel):
                 "transportation": "公共交通",
                 "accommodation": "经济型酒店",
                 "preferences": ["历史文化", "美食"],
-                "free_text_input": "希望多安排一些博物馆"
+                "free_text_input": "希望多安排一些博物馆",
+                "travel_mode": "normal",
+                "people_count": 2
             }
         }
 
@@ -84,6 +88,7 @@ class Meal(BaseModel):
     location: Optional[Location] = Field(default=None, description="经纬度坐标")
     description: Optional[str] = Field(default=None, description="描述")
     estimated_cost: int = Field(default=0, description="预估费用(元)")
+    alternatives: Optional[List[dict]] = Field(default=None, description="备选餐厅列表")
 
 
 class Hotel(BaseModel):
@@ -105,7 +110,7 @@ class DayPlan(BaseModel):
     description: str = Field(..., description="当日行程描述")
     transportation: str = Field(..., description="交通方式")
     accommodation: str = Field(..., description="住宿")
-    hotel: Optional[Hotel] = Field(default=None, description="推荐酒店")
+    hotel: Optional[List[Hotel]] = Field(default=None, description="推荐酒店列表")
     attractions: List[Attraction] = Field(default=[], description="景点列表")
     meals: List[Meal] = Field(default=[], description="餐饮列表")
 
