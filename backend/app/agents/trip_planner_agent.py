@@ -199,6 +199,13 @@ class MultiAgentTripPlanner:
             # )
             # self.attraction_agent.add_tool(self.amap_tool)
 
+            # 手动展开MCP工具（框架bug: MCPTool缺少expandable属性，导致auto_expand不生效）
+            expanded_tools = self.amap_tool.get_expanded_tools()
+            if expanded_tools:
+                print(f"  - MCP工具已展开为 {len(expanded_tools)} 个独立工具: {[t.name for t in expanded_tools]}")
+            else:
+                print("  ⚠️ MCP工具展开失败，将使用原始工具")
+
             # 创建天气查询Agent
             print("  - 创建天气查询Agent...")
             self.weather_agent = SimpleAgent(
@@ -206,7 +213,6 @@ class MultiAgentTripPlanner:
                 llm=self.llm,
                 system_prompt=WEATHER_AGENT_PROMPT
             )
-            self.weather_agent.add_tool(self.amap_tool)
 
             # 创建酒店推荐Agent
             print("  - 创建酒店推荐Agent...")
@@ -215,7 +221,15 @@ class MultiAgentTripPlanner:
                 llm=self.llm,
                 system_prompt=HOTEL_AGENT_PROMPT
             )
-            self.hotel_agent.add_tool(self.amap_tool)
+
+            # 注册展开后的独立工具到各Agent
+            if expanded_tools:
+                for tool in expanded_tools:
+                    self.weather_agent.add_tool(tool, auto_expand=False)
+                    self.hotel_agent.add_tool(tool, auto_expand=False)
+            else:
+                self.weather_agent.add_tool(self.amap_tool)
+                self.hotel_agent.add_tool(self.amap_tool)
 
             # 创建行程规划Agent(不需要工具)
             print("  - 创建行程规划Agent...")
@@ -226,7 +240,6 @@ class MultiAgentTripPlanner:
             )
 
             print(f"✅ 多智能体系统初始化成功")
-            # print(f"   景点搜索Agent: {len(self.attraction_agent.list_tools())} 个工具")
             print(f"   天气查询Agent: {len(self.weather_agent.list_tools())} 个工具")
             print(f"   酒店推荐Agent: {len(self.hotel_agent.list_tools())} 个工具")
 
