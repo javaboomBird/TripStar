@@ -39,7 +39,19 @@
               <div class="step-line"></div>
             </div>
 
-            <div class="fields-grid fields-4">
+            <div class="fields-grid fields-5">
+              <a-form-item name="departure_city" :rules="formRules.departureCity">
+                <template #label>
+                  <span class="field-label">{{ t('home.departureCityLabel') }}</span>
+                </template>
+                <a-input
+                  v-model:value="formData.departure_city"
+                  :placeholder="t('home.departureCityPlaceholder')"
+                  size="large"
+                  class="dark-input"
+                />
+              </a-form-item>
+
               <a-form-item name="city" :rules="formRules.city">
                 <template #label>
                   <span class="field-label">{{ t('home.cityLabel') }}</span>
@@ -219,6 +231,7 @@ const interestOptions = [
 ]
 
 const formRules = computed(() => ({
+  departureCity: [{ required: true, message: t('home.departureCityRequired') }],
   city: [{ required: true, message: t('home.cityRequired') }],
   startDate: [{ required: true, message: t('home.startDateRequired') }],
   endDate: [{ required: true, message: t('home.endDateRequired') }],
@@ -230,6 +243,7 @@ type HomeFormData = Omit<TripFormData, 'start_date' | 'end_date'> & {
 }
 
 const formData = reactive<HomeFormData>({
+  departure_city: '',
   city: '',
   start_date: null,
   end_date: null,
@@ -532,6 +546,10 @@ const handleSubmit = async () => {
 .fields-grid {
   display: grid;
   gap: 20px;
+}
+
+.fields-5 {
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr 0.8fr;
 }
 
 .fields-4 {
@@ -851,6 +869,7 @@ const handleSubmit = async () => {
     font-size: 36px;
   }
 
+  .fields-5,
   .fields-4 {
     grid-template-columns: 1fr;
   }

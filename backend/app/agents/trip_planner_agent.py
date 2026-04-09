@@ -266,6 +266,7 @@ class MultiAgentTripPlanner:
         try:
             print(f"\n{'='*60}")
             print(f"🚀 开始多智能体协作规划旅行（并发优化模式）...")
+            print(f"出发地: {request.departure_city}")
             print(f"目的地: {request.city}")
             print(f"日期: {request.start_date} 至 {request.end_date}")
             print(f"天数: {request.travel_days}天")
@@ -335,7 +336,8 @@ class MultiAgentTripPlanner:
         query = f"""请根据以下信息生成{request.city}的{request.travel_days}天旅行计划:
 
 **基本信息:**
-- 城市: {request.city}
+- 出发地: {request.departure_city}
+- 目的地: {request.city}
 - 日期: {request.start_date} 至 {request.end_date}
 - 天数: {request.travel_days}天
 - 交通方式: {request.transportation}
@@ -352,10 +354,11 @@ class MultiAgentTripPlanner:
 {hotels}
 
 **要求:**
-1. 每天安排2-3个景点
-2. 每天必须包含早中晚三餐
-3. 每天推荐一个具体的酒店(从酒店信息中选择)
-3. 考虑景点之间的距离和交通方式
+1. 根据出发地到目的地的距离，合理建议往返交通方式（如高铁、飞机、自驾等）
+2. 每天安排2-3个景点
+3. 每天必须包含早中晚三餐
+4. 每天推荐一个具体的酒店(从酒店信息中选择)
+5. 考虑景点之间的距离和交通方式
 4. 返回完整的JSON格式数据
 5. 景点的经纬度坐标要真实准确
 """

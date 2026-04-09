@@ -36,7 +36,19 @@
               <span>01</span>
               <h3>{{ t('home.step1') }}</h3>
             </div>
-            <div class="grid grid4">
+            <div class="grid grid5">
+              <a-form-item name="departure_city" :rules="formRules.departureCity">
+                <template #label>
+                  <span class="field-label">{{ t('home.departureCityLabel') }}</span>
+                </template>
+                <a-input
+                  v-model:value="formData.departure_city"
+                  :placeholder="t('home.departureCityPlaceholder')"
+                  size="large"
+                  class="field-input"
+                />
+              </a-form-item>
+
               <a-form-item name="city" :rules="formRules.city">
                 <template #label>
                   <span class="field-label">{{ t('home.cityLabel') }}</span>
@@ -269,12 +281,14 @@ const interestOptions = [
 ]
 
 const formRules = computed(() => ({
+  departureCity: [{ required: true, message: t('home.departureCityRequired') }],
   city: [{ required: true, message: t('home.cityRequired') }],
   startDate: [{ required: true, message: t('home.startDateRequired') }],
   endDate: [{ required: true, message: t('home.endDateRequired') }],
 }))
 
 const formData = reactive<LandingFormData>({
+  departure_city: '',
   city: '',
   start_date: null,
   end_date: null,
@@ -387,6 +401,7 @@ const handleSubmit = async () => {
 
   try {
     const requestData: TripFormData = {
+      departure_city: formData.departure_city,
       city: formData.city,
       start_date: formData.start_date.format('YYYY-MM-DD'),
       end_date: formData.end_date.format('YYYY-MM-DD'),
@@ -592,6 +607,10 @@ const handleSubmit = async () => {
 .grid {
   display: grid;
   gap: 12px;
+}
+
+.grid5 {
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr 0.8fr;
 }
 
 .grid4 {
@@ -954,6 +973,7 @@ const handleSubmit = async () => {
 }
 
 @media (max-width: 1080px) {
+  .grid5,
   .grid4 {
     grid-template-columns: 1fr 1fr;
   }
@@ -972,6 +992,7 @@ const handleSubmit = async () => {
     padding: 22px 18px;
   }
 
+  .grid5,
   .grid4,
   .grid2 {
     grid-template-columns: 1fr;

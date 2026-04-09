@@ -77,6 +77,7 @@ export interface TripPlan {
 }
 
 export interface TripFormData {
+  departure_city: string
   city: string
   start_date: string
   end_date: string
